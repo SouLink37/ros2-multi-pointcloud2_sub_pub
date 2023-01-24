@@ -3,9 +3,9 @@
 #include <string>
 #include <chrono>
 
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
 #include "std_msgs/msg/string.hpp"
-#include "sensor_msgs/msg/point_cloud2.hpp"
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <iostream>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -13,8 +13,15 @@
 #include <pcl/io/pcd_io.h> 
 #include <pcl_conversions/pcl_conversions.h>
 
+#include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
+
+
+
 using std::placeholders::_1;
 using std::placeholders::_2;
+using std::placeholders::_3;
+
 
 class PclSubPub : public rclcpp::Node
 {
@@ -25,21 +32,25 @@ public:
     {
         
         sub_left = this->create_subscription<sensor_msgs::msg::PointCloud2>("realsense_left/camera/depth/color/points", 10, std::bind(&PclSubPub::sub_callback_l, this, std::placeholders::_1));
-        sub_middle = this->create_subscription<sensor_msgs::msg::PointCloud2>("realsense_middle/camera/depth/color/points", 10, std::bind(&PclSubPub::sub_callback_m, this, std::placeholders::_1));
-        sub_right = this->create_subscription<sensor_msgs::msg::PointCloud2>("realsense_right/camera/depth/color/points", 10, std::bind(&PclSubPub::sub_callback_r, this, std::placeholders::_1));
+            // sub_middle = this->create_subscription<sensor_msgs::msg::PointCloud2>("realsense_middle/camera/depth/color/points", 10, std::bind(&PclSubPub::sub_callback_m, this, std::placeholders::_1));
+            // sub_right = this->create_subscription<sensor_msgs::msg::PointCloud2>("realsense_right/camera/depth/color/points", 10, std::bind(&PclSubPub::sub_callback_r, this, std::placeholders::_1));
 
         pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("pointcloud2_unity", 10);
-        timer_ = this->create_wall_timer(std::chrono::milliseconds(33), std::bind(&PclSubPub::pub_callback, this));
+        // command_publisher_ = this->create_publisher<std_msgs::msg::String>("command", 10);
+        // timer_ = this->create_wall_timer(std::chrono::milliseconds(33), std::bind(&PclSubPub::pub_callback, this));
     }
 
 private:
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_left;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_middle;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_right;
-    rclcpp::TimerBase::SharedPtr timer_;
+    // rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub;
+    
+    // rclcpp::Publisher<std_msgs::msg::String>::SharedPtr command_publisher_;
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr sub_callback_l(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+
+    void sub_callback_l(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
     {
 	    // pcl::PointCloud<pcl::PointXYZ>::Ptr basic_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
         // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -50,29 +61,32 @@ private:
         // rclcpp::TimerBase::SharedPtr timer_ = this->create_wall_timer(std::chrono::milliseconds(500), std::bind(&PclSub::save_pcd_file("pcl_data_0.pcd", cloud), this, std::placeholders::_2) );
         // save_pcd_file("pcl_data_1.pcd", cloud);
         
+        RCLCPP_INFO(this->get_logger(), "points_size(%d,%d)",msg->height,msg->width);   
 
-        RCLCPP_INFO(this->get_logger(), "points_size(%d,%d)",msg->height,msg->width);
-        return cloud
+        sensor_msgs::msg::PointCloud2::SharedPtr msg_pub;
+        pcl::toROSMsg(*cloud, *msg_pub);
+        pub -> publish(*msg_pub);
+
     };
 
-    void sub_callback_m(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
-    {
-        //todo
-    }
+    // void sub_callback_m(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+    // {
+    //     //todo
+    // }
 
-    void sub_callback_r(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
-    {
-        //todo
-    }
+    // void sub_callback_r(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+    // {
+    //     //todo
+    // }
 
-    void pub_callback()
-    {   
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = sub_callback_l();
-        sensor_msgs::msg::PointCloud2::SharedPtr msg;
-        pcl::toROSMsg(*cloud, *msg);
+    // void pub_callback()
+    // {   
+    //     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = sub_callback_l();
+    //     sensor_msgs::msg::PointCloud2::SharedPtr msg;
+    //     pcl::toROSMsg(*cloud, *msg);
 
-        pub -> publish(msg);
-    }
+    //     pub -> publish(msg);
+    // }
     
     void save_pcd_file(std::string name, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
     {
